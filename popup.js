@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
   clearBtn.addEventListener('click', clearNote);
   exportBtn.addEventListener('click', exportNotes);
   importBtn.addEventListener('click', importNotes);
+  timestampBtn.addEventListener('click', insertTimestamp);
   
   // Functions
   function extractJiraTicketId(url) {
@@ -146,6 +147,43 @@ document.addEventListener('DOMContentLoaded', function() {
     input.click();
   }
   
+  function getFormattedTimestamp() {
+    const now = new Date();
+    const date = now.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+    const time = now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+    return `[${date} ${time}] `;
+  }
+
+  function insertTimestamp() {
+    const textarea = document.getElementById('noteInput');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const timestamp = getFormattedTimestamp();
+    
+    // Insert timestamp at cursor position
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + timestamp + text.substring(end);
+    
+    // Position cursor after the inserted timestamp
+    const newCursorPos = start + timestamp.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    
+    // Focus back on the textarea
+    textarea.focus();
+    
+    // Update the note
+    saveNote();
+    updateStatus('Timestamp added');
+  }
+
   function updateStatus(message, isError = false) {
     statusEl.textContent = message;
     statusEl.style.color = isError ? '#d73a49' : '#586069';
