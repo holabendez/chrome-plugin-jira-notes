@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Welcome to Jira Notes</title>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 500px;
+      margin: 0;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #24292e;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-top: 0;
+    }
+    .feature {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+    .feature-icon {
+      font-size: 24px;
+      margin-right: 15px;
+      color: #2ea043;
+    }
+    .feature-text h3 {
+      margin: 0 0 5px 0;
+      color: #2c3e50;
+    }
+    .feature-text p {
+      margin: 0;
+      color: #586069;
+    }
+    .btn {
+      display: inline-block;
+      background-color: #2ea043;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: 10px;
+      transition: background-color 0.2s;
+    }
+    .btn:hover {
+      background-color: #2c974b;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #e1e4e8;
+      font-size: 14px;
+      color: #6a737d;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎉 Welcome to Jira Notes!</h1>
+    <p>Thanks for installing Jira Notes. Here's how to get started:</p>
+    
+    <div class="feature">
+      <div class="feature-icon">📝</div>
+      <div class="feature-text">
+        <h3>Take Notes on Jira Tickets</h3>
+        <p>Click the Jira Notes icon in your toolbar while viewing any Jira ticket to add your private notes.</p>
+      </div>
+    </div>
+    
+    <div class="feature">
+      <div class="feature-icon">💾</div>
+      <div class="feature-text">
+        <h3>Automatic Saving</h3>
+        <p>Your notes are automatically saved and will be there when you come back.</p>
+      </div>
+    </div>
+    
+    <div class="feature">
+      <div class="feature-icon">📤</div>
+      <div class="feature-text">
+        <h3>Export & Import</h3>
+        <p>Backup your notes or transfer them to another computer using the export/import feature.</p>
+      </div>
+    </div>
+    
+    <a href="#" id="getStarted" class="btn">Get Started</a>
+    
+    <div class="footer">
+      <p>Need help or have feedback? <a href="#" id="feedback">Contact us</a></p>
+    </div>
+  </div>
+  
+  <script>
+    document.getElementById('getStarted').addEventListener('click', function(e) {
+      e.preventDefault();
+      window.close();
+    });
+    
+    document.getElementById('feedback').addEventListener('click', function(e) {
+      e.preventDefault();
+      chrome.tabs.create({
+        url: 'mailto:your-email@example.com?subject=Jira%20Notes%20Feedback'
+      });
+    });
+  </script>
+</body>
+</html>
