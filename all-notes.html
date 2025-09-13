@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>All Jira Notes</title>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --primary-color: #0052cc;
+      --background-color: #f4f5f7;
+      --card-bg: #ffffff;
+      --text-color: #172b4d;
+      --border-color: #dfe1e6;
+      --success-color: #36b37e;
+      --risk-color: #ffebee;
+      --risk-border: #f5c6cb;
+      --risk-text: #721c24;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--background-color);
+      color: var(--text-color);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--primary-color);
+    }
+    
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .search-box {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: white;
+      font-size: 14px;
+      min-width: 150px;
+    }
+    
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+    
+    .note-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .note-card.at-risk {
+      border-left: 4px solid var(--risk-border);
+      background-color: var(--risk-color);
+    }
+    
+    .note-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    
+    .risk-badge {
+      background: white;
+      color: var(--risk-text);
+      border: 1px solid var(--risk-border);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .note-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 3px 12px rgba(9, 30, 66, 0.15);
+    }
+    
+    .note-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .ticket-id {
+      font-weight: 600;
+      color: var(--primary-color);
+      text-decoration: none;
+    }
+    
+    .ticket-id:hover {
+      text-decoration: underline;
+    }
+    
+    .ticket-title {
+      font-size: 15px;
+      margin: 4px 0 8px;
+      font-weight: 500;
+    }
+    
+    .note-content {
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      margin-bottom: 12px;
+    }
+    
+    .note-footer {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #5e6c84;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #5e6c84;
+      grid-column: 1 / -1;
+    }
+    
+    .export-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    
+    .export-btn:hover {
+      background-color: #0747a6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>All Jira Notes</h1>
+      <button id="exportAllBtn" class="export-btn">Export All Notes</button>
+    </header>
+    
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="Search notes..." class="search-box">
+      
+      <select id="filterProject" class="filter-select">
+        <option value="">All Projects</option>
+        <!-- Will be populated by JavaScript -->
+      </select>
+      
+      <select id="filterRisk" class="filter-select">
+        <option value="all">All Tickets</option>
+        <option value="atRisk">At Risk Only</option>
+      </select>
+      
+      <select id="sortBy" class="filter-select">
+        <option value="date-desc">Sort by: Newest First</option>
+        <option value="date-asc">Sort by: Oldest First</option>
+        <option value="project">Sort by: Project</option>
+        <option value="ticket">Sort by: Ticket ID</option>
+      </select>
+    </div>
+    
+    <div class="notes-grid" id="notesContainer">
+      <!-- Notes will be inserted here by JavaScript -->
+      <div class="empty-state">
+        <p>No notes found. Start adding notes to your Jira tickets to see them here.</p>
+      </div>
+    </div>
+  </div>
+  
+  <script src="all-notes.js"></script>
+</body>
+</html>

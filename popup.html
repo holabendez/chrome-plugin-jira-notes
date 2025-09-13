@@ -64,12 +64,50 @@
       margin-top: 5px;
       text-align: right;
     }
+    
+    .risk-controls {
+      margin: 10px 0;
+      padding: 8px;
+      background-color: #fff8f8;
+      border: 1px solid #ffdce0;
+      border-radius: 4px;
+    }
+    
+    .risk-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 12px;
+      background: #fff;
+      border: 1px solid #d1d5da;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    
+    .risk-button:hover {
+      background: #f6f8fa;
+    }
+    
+    .risk-button.at-risk {
+      background: #ffebee;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+    
+    .risk-icon {
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h2 style="margin: 0;">Jira Notes</h2>
     <div class="actions">
+      <a href="#" id="viewAllNotes" style="margin-right: 8px; text-decoration: none; color: #0366d6; font-size: 13px;" title="View all notes">View All</a>
       <button id="exportBtn" title="Export all notes">Export</button>
       <button id="importBtn" title="Import notes">Import</button>
     </div>
@@ -77,6 +115,12 @@
   
   <div id="ticketInfo" class="ticket-info">
     Not on a Jira ticket page
+  </div>
+  
+  <div class="risk-controls">
+    <button id="atRiskBtn" class="risk-button" title="Mark ticket as 'At Risk'">
+      <span class="risk-icon">🚩</span> Mark as At Risk
+    </button>
   </div>
   
   <textarea id="noteInput" placeholder="Type your notes here..."></textarea>
