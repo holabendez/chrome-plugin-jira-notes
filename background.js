@@ -87,6 +87,23 @@ function extractJiraTicketId(url) {
   return match ? match[1] : null;
 }
 
+// Create context menu item
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'openAllNotes',
+    title: 'View All Jira Notes',
+    contexts: ['action'],
+    documentUrlPatterns: ['<all_urls>']
+  });
+});
+
+// Handle context menu item click
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'openAllNotes') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('all-notes.html') });
+  }
+});
+
 // Update badge when tab is updated
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab && tab.url) {

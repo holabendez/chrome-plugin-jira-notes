@@ -67,10 +67,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return;
     }
     
-    // Extract ticket title if available
-    const titleElement = document.querySelector('h1[data-test-id="issue.views.issue-base.foundation.summary.heading"]') || 
-                        document.querySelector('h1');
-    const title = titleElement ? titleElement.textContent.trim() : '';
+    // Extract ticket summary if available
+    let summary = '';
+    // Try different selectors to find the summary
+    const summaryElement = document.querySelector('h1[data-test-id="issue.views.issue-base.foundation.summary.heading"]') ||
+                         document.querySelector('h1[data-test-id="issue.views.issue-base.foundation.summary.heading"] + div') ||
+                         document.querySelector('.jira-issue-header__summary') ||
+                         document.querySelector('#summary-val') ||
+                         document.querySelector('#summary-val .user-content-block') ||
+                         document.querySelector('h1');
+    
+    if (summaryElement) {
+      summary = summaryElement.textContent.trim();
+      // Clean up any extra whitespace
+      summary = summary.replace(/\s+/g, ' ');
+    }
     
     // Extract ticket status if available
     const statusElement = document.querySelector('[data-test-id="issue.views.issue-base.foundation.status"]') ||
@@ -87,7 +98,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     sendResponse({
       ticketId,
-      title,
+      title: summary, // Using summary as title for backward compatibility
+      summary,        // New field for summary
       status,
       url: window.location.href,
       canonicalUrl: canonicalUrl

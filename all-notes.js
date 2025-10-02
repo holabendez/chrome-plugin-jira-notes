@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
             project: items[key].project || 'Other',
             timestamp: items[key].timestamp || 0,
             title: items[key].title || `Ticket ${ticketId}`,
+            summary: items[key].summary || `Ticket ${ticketId}`,
             isAtRisk: riskStatuses[ticketId] || false
           };
           allNotes.push(note);
@@ -143,6 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const title = document.createElement('h3');
     title.textContent = note.title;
     title.className = 'note-title';
+    title.title = note.summary; // Show full summary on hover
     
     // Add risk indicator
     if (note.isAtRisk) {
@@ -164,6 +166,11 @@ document.addEventListener('DOMContentLoaded', function() {
     project.textContent = note.project;
     project.className = 'project-tag';
     
+    const summary = document.createElement('div');
+    summary.textContent = note.summary;
+    summary.className = 'note-summary';
+    summary.title = note.summary; // Show full summary on hover
+    
     const content = document.createElement('div');
     content.textContent = note.content;
     content.className = 'note-content';
@@ -177,6 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
     noteCard.appendChild(header);
     noteCard.appendChild(ticketId);
     noteCard.appendChild(project);
+    noteCard.appendChild(summary);
     noteCard.appendChild(content);
     noteCard.appendChild(timestamp);
     
@@ -208,6 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
         id: note.id,
         title: note.title,
         project: note.project,
+        summary: note.summary || `Ticket ${note.id}`,
         content: note.content,
         timestamp: note.timestamp,
         isAtRisk: note.isAtRisk || false

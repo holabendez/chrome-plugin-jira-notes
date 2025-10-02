@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const clearBtn = document.getElementById('clearBtn');
   const viewAllNotesBtn = document.getElementById('viewAllNotes');
   const atRiskBtn = document.getElementById('atRiskBtn');
-  const ticketInfo = document.getElementById('ticketInfo');
+  const ticketIdElement = document.getElementById('ticketId');
+  const ticketSummaryElement = document.getElementById('ticketSummary');
   const statusEl = document.getElementById('status');
   
   let currentTicketId = '';
@@ -45,7 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
       // Then load the note
       loadNote(ticketId);
     } else {
-      ticketInfo.textContent = 'Not on a Jira ticket page';
+      ticketIdElement.textContent = 'Not on a Jira ticket page';
+      ticketSummaryElement.textContent = '';
       noteInput.disabled = true;
       saveBtn.disabled = true;
       clearBtn.disabled = true;
@@ -74,7 +76,45 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function updateTicketInfo(ticketId) {
-    ticketInfo.textContent = `Jira Ticket: ${ticketId}`;
+    ticketIdElement.textContent = `Jira Ticket: ${ticketId}`;
+    
+    // Get the ticket info from the content script
+    chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+      chrome.tabs.sendMessage(tabs[0].id, {action: 'getTicketInfo'}, function(response) {
+        if (chrome.runtime.lastError) {
+          console.error('Error getting ticket info:', chrome.runtime.lastError);
+          return;
+        }
+        
+        if (response && response.summary) {
+          // Update the summary display
+          ticketSummaryElement.textContent = response.summary;
+          
+          // Update the stored summary if it's different
+          const noteKey = `note_${ticketId}`;
+          chrome.storage.local.get([noteKey], function(result) {
+            const currentNote = result[noteKey] || {};
+            if (currentNote.summary !== response.summary) {
+              // Update the stored note with the latest summary
+              chrome.storage.local.set({
+                [noteKey]: {
+                  ...currentNote,
+                  summary: response.summary,
+                  // Preserve existing fields
+                  content: currentNote.content || '',
+                  project: currentNote.project || ticketId.split('-')[0],
+                  title: currentNote.title || `Ticket ${ticketId}`,
+                  timestamp: currentNote.timestamp || Date.now()
+                }
+              });
+            }
+          });
+        } else {
+          // Don't show anything if we don't have a valid summary
+          ticketSummaryElement.textContent = '';
+        }
+      });
+    });
   }
   
   function loadNote(ticketId) {
@@ -128,6 +168,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const noteKey = `note_${currentTicketId}`;
     const urlKey = `url_${currentTicketId}`;
     
+    // Get the current summary before saving
+    const currentSummary = ticketSummaryElement.textContent;
+    
     // Get current risk status
     chrome.storage.local.get([`risk_${currentTicketId}`], function(riskResult) {
       const isAtRisk = riskResult[`risk_${currentTicketId}`] === true;
@@ -139,8 +182,14 @@ document.addEventListener('DOMContentLoaded', function() {
           timestamp: Date.now(),
           project: currentTicketId.split('-')[0],
           title: `Ticket ${currentTicketId}`,
+          summary: currentSummary, // Only include summary if we have one
           atRisk: isAtRisk  // Include risk status in note data
         };
+        
+        // Remove summary if it's the same as the title to avoid duplication
+        if (noteData.summary === noteData.title) {
+          delete noteData.summary;
+        }
         
         // Get the current URL and ensure it's from a supported Jira instance
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {

@@ -4,15 +4,14 @@
   "version": "1.4.0",
   "description": "Take and manage notes and risk flags for Jira tickets with import/export functionality",
   "permissions": [
-    "storage", 
-    "activeTab", 
-    "alarms",
-    "scripting",
-    "declarativeNetRequest"
+    "storage",
+    "tabs",
+    "activeTab",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://*.atlassian.net/*",
-    "https://jira.service.tools-pi.com/*"
+    "*://jira.service.tools-pi.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -39,7 +38,8 @@
         "*://*.atlassian.net/browse/*",
         "https://jira.service.tools-pi.com/browse/*"
       ],
-      "js": ["content.js"]
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
     }
   ],
   "background": {
