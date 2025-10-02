@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Jira Notes",
-  "version": "1.3.2",
-  "description": "Take and manage notes and risk flags for Jira tickets",
+  "version": "1.4.0",
+  "description": "Take and manage notes and risk flags for Jira tickets with import/export functionality",
   "permissions": [
     "storage", 
     "activeTab", 

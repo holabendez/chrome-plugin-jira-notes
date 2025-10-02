@@ -195,16 +195,24 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Export all notes to a file
   function exportAllNotes() {
+    // First, collect all risk statuses
+    const riskStatuses = {};
+    allNotes.forEach(note => {
+      riskStatuses[note.id] = note.isAtRisk || false;
+    });
+    
     const exportData = {
-      version: '1.0',
+      version: '1.1',  // Bump version to indicate risk status support
       exportedAt: new Date().toISOString(),
       notes: allNotes.map(note => ({
         id: note.id,
         title: note.title,
         project: note.project,
         content: note.content,
-        timestamp: note.timestamp
-      }))
+        timestamp: note.timestamp,
+        isAtRisk: note.isAtRisk || false
+      })),
+      riskStatuses: riskStatuses
     };
     
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -233,9 +241,13 @@ document.addEventListener('DOMContentLoaded', function() {
             throw new Error('Invalid import file format');
           }
           
+          // Check if this is a v1.1+ export with risk statuses
+          const hasRiskStatuses = importData.version && parseFloat(importData.version) >= 1.1 && importData.riskStatuses;
+          
           // Load existing notes first
           chrome.storage.local.get(null, function(items) {
             const updates = {};
+            const riskUpdates = {};
             const importedTicketIds = new Set();
             
             // Process imported notes
@@ -248,17 +260,41 @@ document.addEventListener('DOMContentLoaded', function() {
                   timestamp: note.timestamp || Date.now(),
                   title: note.title || `Ticket ${note.id}`
                 };
+                
+                // Handle risk status for v1.1+ format
+                if (hasRiskStatuses && importData.riskStatuses[note.id]) {
+                  riskUpdates[`risk_${note.id}`] = true;
+                } 
+                // Fallback to check if risk status is embedded in the note (for backward compatibility)
+                else if (note.isAtRisk) {
+                  riskUpdates[`risk_${note.id}`] = true;
+                }
+                
                 importedTicketIds.add(note.id);
               }
             });
             
-            // Save all updates
+            // First save the note content updates
             chrome.storage.local.set(updates, function() {
               if (chrome.runtime.lastError) {
                 console.error('Error importing notes:', chrome.runtime.lastError);
                 alert('Error importing notes. Please check the console for details.');
+                return;
+              }
+              
+              // Then save the risk status updates if there are any
+              if (Object.keys(riskUpdates).length > 0) {
+                chrome.storage.local.set(riskUpdates, function() {
+                  if (chrome.runtime.lastError) {
+                    console.error('Error importing risk statuses:', chrome.runtime.lastError);
+                    alert('Notes imported, but there was an error importing risk statuses.');
+                  }
+                  // Reload notes to show the imported ones
+                  loadAllNotes();
+                  alert(`Successfully imported ${importedTicketIds.size} notes with risk statuses.`);
+                });
               } else {
-                // Reload notes to show the imported ones
+                // No risk statuses to import, just reload notes
                 loadAllNotes();
                 alert(`Successfully imported ${importedTicketIds.size} notes.`);
               }
