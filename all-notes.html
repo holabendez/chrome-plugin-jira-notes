@@ -39,68 +39,94 @@
       border-bottom: 1px solid var(--border-color);
     }
     
-    h1 {
-      margin: 0;
-      font-size: 24px;
-      color: var(--primary-color);
-    }
-    
-    .controls {
+    .filters {
       display: flex;
       gap: 12px;
       margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
     }
     
     .search-box {
       flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+    }
+    
+    .search-box input {
+      width: 100%;
       padding: 8px 12px;
       border: 1px solid var(--border-color);
       border-radius: 4px;
       font-size: 14px;
     }
     
-    .filter-select {
+    .filter-select, .filter-btn, .export-btn {
       padding: 8px 12px;
       border: 1px solid var(--border-color);
       border-radius: 4px;
-      background: white;
+      background-color: white;
+      cursor: pointer;
       font-size: 14px;
-      min-width: 150px;
+    }
+    
+    .filter-btn.active {
+      background-color: var(--primary-color);
+      color: white;
+      border-color: var(--primary-color);
+    }
+    
+    .export-btn {
+      background-color: var(--success-color);
+      color: white;
+      border-color: var(--success-color);
     }
     
     .notes-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
     }
     
     .note-card {
-      background: var(--card-bg);
+      background-color: var(--card-bg);
       border: 1px solid var(--border-color);
+      border-left: 4px solid var(--primary-color);
       border-radius: 6px;
       padding: 16px;
-      margin-bottom: 16px;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .note-card.at-risk {
-      border-left: 4px solid var(--risk-border);
-      background-color: var(--risk-color);
-    }
-    
-    .note-header {
+      transition: all 0.2s ease;
+      position: relative;
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 8px;
+      flex-direction: column;
+      height: 100%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    .ticket-header {
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .ticket-header h3 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .ticket-id {
+      font-weight: 600;
+      color: var(--primary-color);
     }
     
     .risk-badge {
-      background: white;
-      color: var(--risk-text);
-      border: 1px solid var(--risk-border);
-      border-radius: 12px;
-      padding: 2px 8px;
+      background-color: #ffebee;
+      color: #c62828;
+      padding: 2px 6px;
+      border-radius: 4px;
       font-size: 12px;
       font-weight: 500;
       display: inline-flex;
@@ -108,70 +134,154 @@
       gap: 4px;
     }
     
-    .note-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 3px 12px rgba(9, 30, 66, 0.15);
-    }
-    
-    .note-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border-color);
-    }
-    
-    .ticket-id {
-      font-weight: 600;
-      color: var(--primary-color);
-      text-decoration: none;
-    }
-    
-    .ticket-id:hover {
-      text-decoration: underline;
-    }
-    
-    .ticket-title {
-      font-size: 15px;
-      margin: 4px 0 8px;
+    .archived-badge {
+      background-color: #f5f5f5;
+      color: #616161;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
       font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .ticket-summary {
+      font-size: 14px;
+      color: #424242;
+      margin-top: 8px;
+      line-height: 1.4;
     }
     
     .note-content {
-      font-size: 14px;
+      flex: 1;
+      margin: 12px 0;
       line-height: 1.5;
-      white-space: pre-wrap;
-      margin-bottom: 12px;
+      color: #333;
     }
     
-    .note-footer {
+    .note-content p {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    
+    .ticket-meta {
       display: flex;
       justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f0f0f0;
       font-size: 12px;
-      color: #5e6c84;
+      color: #757575;
+    }
+    
+    .ticket-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .ticket-actions button,
+    .ticket-actions a {
+      background: none;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: none;
+      color: #333;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+    
+    .ticket-actions button:hover,
+    .ticket-actions a:hover {
+      background-color: #f5f5f5;
+    }
+    
+    .delete-btn {
+      color: #d32f2f !important;
+      border-color: #ffcdd2 !important;
+    }
+    
+    .delete-btn:hover {
+      background-color: #ffebee !important;
+    }
+    
+    .view-ticket {
+      color: #1565c0 !important;
+      border-color: #bbdefb !important;
+    }
+    
+    .view-ticket:hover {
+      background-color: #e3f2fd !important;
+    }
+    
+    .note-card.archived {
+      opacity: 0.8;
+      background-color: #f9f9f9;
+      border-left-color: #999;
+    }
+    
+    .note-card.at-risk {
+      border-left-color: #dc3545;
+    }
+    
+    .ticket-summary {
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #2c3e50;
+    }
+    
+    .ticket-id {
+      font-weight: bold;
+      color: var(--primary-color);
+      margin-right: 8px;
+    }
+    
+    .ticket-meta {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .ticket-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .archive-btn, .delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    
+    .archive-btn {
+      color: #4b5563;
+    }
+    
+    .delete-btn {
+      color: #dc3545;
     }
     
     .empty-state {
+      grid-column: 1 / -1;
       text-align: center;
       padding: 40px 20px;
-      color: #5e6c84;
-      grid-column: 1 / -1;
     }
     
-    .export-btn {
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: background-color 0.2s;
-    }
-    
-    .export-btn:hover {
-      background-color: #0747a6;
+    .sort-options {
+      margin-left: auto;
     }
   </style>
 </head>
@@ -179,28 +289,32 @@
   <div class="container">
     <header>
       <h1>All Jira Notes</h1>
-      <button id="exportAllBtn" class="export-btn">Export All Notes</button>
+      <button id="backBtn" class="filter-btn">← Back to Extension</button>
     </header>
     
-    <div class="controls">
-      <input type="text" id="searchInput" placeholder="Search notes..." class="search-box">
-      
-      <select id="filterProject" class="filter-select">
+    <div class="filters">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search notes...">
+      </div>
+      <select id="projectFilter" class="filter-select">
         <option value="">All Projects</option>
-        <!-- Will be populated by JavaScript -->
       </select>
-      
-      <select id="filterRisk" class="filter-select">
+      <select id="archiveFilter" class="filter-select">
         <option value="all">All Tickets</option>
-        <option value="atRisk">At Risk Only</option>
+        <option value="active">Active Only</option>
+        <option value="archived">Archived Only</option>
       </select>
-      
-      <select id="sortBy" class="filter-select">
-        <option value="date-desc">Sort by: Newest First</option>
-        <option value="date-asc">Sort by: Oldest First</option>
-        <option value="project">Sort by: Project</option>
-        <option value="ticket">Sort by: Ticket ID</option>
-      </select>
+      <button id="showAtRiskBtn" class="filter-btn">Show At Risk Only</button>
+      <div class="sort-options">
+        <select id="sortBy" class="filter-select">
+          <option value="date-desc">Sort by: Newest First</option>
+          <option value="date-asc">Sort by: Oldest First</option>
+          <option value="project">Sort by: Project</option>
+          <option value="ticket">Sort by: Ticket ID</option>
+        </select>
+      </div>
+      <button id="exportAllBtn" class="export-btn">Export All</button>
+      <button id="importBtn" class="export-btn" style="background-color: #6c757d; border-color: #6c757d;">Import</button>
     </div>
     
     <div class="notes-grid" id="notesContainer">
@@ -211,6 +325,7 @@
     </div>
   </div>
   
-  <script src="all-notes.js"></script>
+  <script src="data-service.js" type="module"></script>
+  <script src="all-notes.js" type="module"></script>
 </body>
 </html>

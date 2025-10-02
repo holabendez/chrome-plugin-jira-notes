@@ -5,17 +5,23 @@
   <meta charset="UTF-8">
   <style>
     body {
-      width: 300px;
-      padding: 10px;
+      width: 350px;
+      padding: 15px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      margin: 0;
+      color: #24292f;
     }
     .header {
+      margin-bottom: 15px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e1e4e8;
+    }
+    
+    .header-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #e1e4e8;
+      margin-bottom: 8px;
     }
     .ticket-info {
       margin-bottom: 10px;
@@ -23,34 +29,96 @@
       background-color: #f6f8fa;
       border-radius: 4px;
       font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .ticket-summary {
+      margin: 8px 0;
+      padding: 8px;
+      background-color: #f0f4f8;
+      border-left: 3px solid #4a90e2;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #2c3e50;
+      display: none; /* Hidden by default */
     }
     textarea {
       width: 100%;
-      height: 200px;
-      margin: 10px 0;
-      padding: 8px;
+      min-height: 150px;
+      max-height: 300px;
+      margin: 12px 0;
+      padding: 10px;
       border: 1px solid #d1d5da;
-      border-radius: 4px;
+      border-radius: 6px;
       resize: vertical;
       font-family: inherit;
+      font-size: 14px;
+      line-height: 1.5;
+      box-sizing: border-box;
+    }
+    
+    textarea:focus {
+      outline: none;
+      border-color: #2188ff;
+      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
     }
     .button-group {
       display: flex;
       justify-content: space-between;
-      margin-top: 10px;
+      margin: 12px 0;
+      gap: 8px;
+    }
+    
+    .button-group button {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
     }
     button {
       padding: 6px 12px;
-      border: 1px solid #d1d5da;
-      border-radius: 4px;
+      border: 1px solid rgba(27, 31, 36, 0.15);
+      border-radius: 6px;
       background-color: #f6f8fa;
       cursor: pointer;
-      font-size: 14px;
+      font-weight: 500;
+      transition: background-color 0.2s, border-color 0.2s;
     }
     button.primary {
-      background-color: #2ea043;
+      background-color: #2da44e;
       color: white;
-      border-color: #2ea043;
+      border-color: rgba(27, 31, 36, 0.15);
+      font-weight: 600;
+    }
+    
+    button.primary:hover {
+      background-color: #2c974b;
+    }
+    button.at-risk {
+      background-color: #ffd8de;
+      border-color: #ffb8c1;
+      color: #cf222e;
+    }
+    
+    button.at-risk:hover {
+      background-color: #ffc9d1;
+    }
+    button.archived {
+      background-color: #f6f8fa;
+      color: #57606a;
+      border-color: rgba(27, 31, 36, 0.15);
+    }
+    
+    button.archived:hover {
+      background-color: #f3f4f6;
+    }
+    button.at-risk.archived {
+      background-color: #ffdce0;
+      opacity: 0.8;
     }
     button:hover {
       background-color: #eaecef;
@@ -60,81 +128,95 @@
     }
     .status {
       font-size: 12px;
-      color: #586069;
-      margin-top: 5px;
-      text-align: right;
+      color: #57606a;
+      margin: 8px 0 0;
+      padding: 8px 0;
+      text-align: center;
+      min-height: 16px;
     }
     
-    .risk-controls {
-      margin: 10px 0;
-      padding: 8px;
-      background-color: #fff8f8;
-      border: 1px solid #ffdce0;
-      border-radius: 4px;
+    .status.error {
+      color: #cf222e;
     }
     
-    .risk-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      padding: 8px 12px;
-      background: #fff;
-      border: 1px solid #d1d5da;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-    
-    .risk-button:hover {
-      background: #f6f8fa;
-    }
-    
-    .risk-button.at-risk {
-      background: #ffebee;
-      border-color: #f5c6cb;
-      color: #721c24;
-    }
-    
-    .risk-icon {
-      font-size: 14px;
+    .status.success {
+      color: #1a7f37;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <h2 style="margin: 0;">Jira Notes</h2>
-    <div class="actions">
-      <a href="#" id="viewAllNotes" style="margin-right: 8px; text-decoration: none; color: #0366d6; font-size: 13px;" title="View all notes">View All</a>
-      <button id="exportBtn" title="Export all notes">Export</button>
-      <button id="importBtn" title="Import notes">Import</button>
+    <div class="header-top">
+      <h2 style="margin: 0; font-size: 18px; color: #1f2328;">Jira Notes</h2>
+      <a href="#" id="viewAllNotes" class="view-all-link" title="View all notes">View All Notes</a>
     </div>
+    <div class="ticket-info" id="ticketInfo">Loading ticket info...</div>
+    <div class="ticket-summary" id="ticketSummary"></div>
   </div>
-  
-  <div id="ticketInfo" class="ticket-info">
-    Not on a Jira ticket page
-  </div>
-  
-  <div class="risk-controls">
-    <button id="atRiskBtn" class="risk-button" title="Mark ticket as 'At Risk'">
-      <span class="risk-icon">🚩</span> Mark as At Risk
-    </button>
-  </div>
-  
-  <textarea id="noteInput" placeholder="Type your notes here..."></textarea>
-  
-  <div class="button-group">
-    <div>
+    
+    <textarea id="noteInput" placeholder="Add your notes here..."></textarea>
+    
+    <div class="button-group">
+      <button id="saveBtn" class="primary">Save Note</button>
       <button id="clearBtn">Clear</button>
-      <button id="timestampBtn" title="Add current date/time">Add Timestamp</button>
     </div>
-    <button id="saveBtn" class="primary">Save Note</button>
-  </div>
-  
-  <div id="status" class="status"></div>
-  
-  <script src="popup.js"></script>
-</body>
+    
+    <div class="button-group">
+      <button id="atRiskBtn">
+        <span class="risk-icon">🚩 Mark as At Risk</span>
+      </button>
+      <button id="archiveBtn">
+        📦 Archive Ticket
+      </button>
+    </div>
+    
+    <div class="button-group">
+      <button id="exportBtn">📤 Export All</button>
+      <button id="importBtn">📥 Import</button>
+    </div>
+    
+    <div id="status" class="status"></div>
+    
+    <style>
+      .view-all-link {
+        font-size: 13px;
+        color: #0969da;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 6px;
+      }
+      
+      .view-all-link:hover {
+        text-decoration: underline;
+        background-color: #f6f8fa;
+      }
+      
+      .ticket-info {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1f2328;
+        margin: 4px 0;
+        padding: 6px 8px;
+        background-color: #f6f8fa;
+        border-radius: 6px;
+        border-left: 3px solid #1f883d;
+      }
+      
+      .ticket-summary {
+        font-size: 13px;
+        line-height: 1.4;
+        color: #57606a;
+        margin: 8px 0;
+        padding: 8px 12px;
+        background-color: #f6f8fa;
+        border-radius: 6px;
+        border-left: 3px solid #0969da;
+      }
+    </style>
+    
+    <script src="data-service.js" type="module"></script>
+    <script src="popup.js" type="module"></script>
+  </body>
 </html>

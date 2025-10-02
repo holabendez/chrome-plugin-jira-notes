@@ -1,4 +1,6 @@
-document.addEventListener('DOMContentLoaded', function() {
+import dataService from './data-service.js';
+
+document.addEventListener('DOMContentLoaded', async function() {
   // DOM elements
   const noteInput = document.getElementById('noteInput');
   const saveBtn = document.getElementById('saveBtn');
@@ -7,25 +9,46 @@ document.addEventListener('DOMContentLoaded', function() {
   const importBtn = document.getElementById('importBtn');
   const viewAllNotesBtn = document.getElementById('viewAllNotes');
   const atRiskBtn = document.getElementById('atRiskBtn');
+  const archiveBtn = document.getElementById('archiveBtn');
   const ticketInfo = document.getElementById('ticketInfo');
   const statusEl = document.getElementById('status');
+  const summaryEl = document.getElementById('ticketSummary');
   
   let currentTicketId = '';
   let currentNote = '';
+  let currentTicket = null;
   
-  // Load and update the risk button state
-  function updateRiskButtonState(isAtRisk) {
-    if (isAtRisk) {
+  // Update UI based on ticket data
+  function updateUI(ticket) {
+    // Update risk button
+    if (ticket?.isAtRisk) {
       atRiskBtn.classList.add('at-risk');
       atRiskBtn.innerHTML = '<span class="risk-icon">🚩</span> Marked as At Risk';
     } else {
       atRiskBtn.classList.remove('at-risk');
       atRiskBtn.innerHTML = '<span class="risk-icon">🚩</span> Mark as At Risk';
     }
+    
+    // Update archive button
+    if (ticket?.isArchived) {
+      archiveBtn.classList.add('archived');
+      archiveBtn.innerHTML = 'Unarchive Ticket';
+    } else {
+      archiveBtn.classList.remove('archived');
+      archiveBtn.innerHTML = 'Archive Ticket';
+    }
+    
+    // Update summary if available
+    if (ticket?.summary) {
+      summaryEl.textContent = ticket.summary;
+      summaryEl.style.display = 'block';
+    } else {
+      summaryEl.style.display = 'none';
+    }
   }
 
   // Initialize the popup
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+  chrome.tabs.query({active: true, currentWindow: true}, async function(tabs) {
     const url = tabs[0]?.url || '';
     const ticketId = extractJiraTicketId(url);
     
@@ -33,19 +56,28 @@ document.addEventListener('DOMContentLoaded', function() {
       currentTicketId = ticketId;
       updateTicketInfo(ticketId);
       
-      // Load risk status first
-      chrome.storage.local.get([`risk_${ticketId}`], function(result) {
-        updateRiskButtonState(result[`risk_${ticketId}`] === true);
-      });
-      
-      // Update badge immediately when popup opens
-      chrome.runtime.sendMessage({ 
-        action: 'updateBadge',
-        forceUpdate: true 
-      });
-      
-      // Then load the note
-      loadNote(ticketId);
+      try {
+        // Load ticket data
+        currentTicket = await dataService.getTicket(ticketId) || {};
+        
+        // If no summary, try to get it from the page
+        if (!currentTicket.summary) {
+          const summary = await getTicketSummary();
+          if (summary) {
+            currentTicket.summary = summary;
+            await dataService.saveTicket(ticketId, { summary });
+          }
+        }
+        
+        // Update UI with ticket data
+        updateUI(currentTicket);
+        
+        // Load the note
+        loadNote(ticketId);
+      } catch (error) {
+        console.error('Error initializing popup:', error);
+        updateStatus('Error loading ticket data', true);
+      }
     } else {
       ticketInfo.textContent = 'Not on a Jira ticket page';
       noteInput.disabled = true;
@@ -58,6 +90,59 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   
+  // Toggle Archive status
+  async function toggleArchiveStatus() {
+    if (!currentTicketId) return;
+    
+    try {
+      const isArchived = !currentTicket?.isArchived;
+      
+      // Update the ticket
+      await dataService.archiveTicket(currentTicketId, isArchived);
+      
+      // Update the UI
+      if (currentTicket) {
+        currentTicket.isArchived = isArchived;
+      }
+      
+      // Update the badge
+      await updateBadge();
+      
+      // Show status message
+      updateStatus(isArchived ? 'Ticket archived' : 'Ticket unarchived');
+    } catch (error) {
+      console.error('Error toggling archive status:', error);
+      updateStatus('Failed to update archive status', true);
+    }
+  }
+  
+  // Get ticket summary from the current page
+  async function getTicketSummary() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+        if (tabs && tabs[0]) {
+          chrome.scripting.executeScript({
+            target: {tabId: tabs[0].id},
+            func: () => {
+              // Try to find the summary element in the page
+              const summaryElement = 
+                document.querySelector('[data-testid="issue.views.issue-base.foundation.summary.heading"]') || // Jira Cloud
+                document.querySelector('#summary-val') || // Jira Server
+                document.querySelector('.jira-issue-header__title'); // Jira Service Management
+              
+              return summaryElement ? summaryElement.textContent.trim() : '';
+            }
+          }, (results) => {
+            const summary = results?.[0]?.result || '';
+            resolve(summary);
+          });
+        } else {
+          resolve('');
+        }
+      });
+    });
+  }
+
   // Event Listeners
   saveBtn.addEventListener('click', saveNote);
   clearBtn.addEventListener('click', clearNote);
@@ -66,6 +151,7 @@ document.addEventListener('DOMContentLoaded', function() {
   viewAllNotesBtn.addEventListener('click', viewAllNotes);
   timestampBtn.addEventListener('click', insertTimestamp);
   atRiskBtn.addEventListener('click', toggleAtRiskStatus);
+  archiveBtn.addEventListener('click', toggleArchiveStatus);
   
   // Functions
   function extractJiraTicketId(url) {
@@ -81,30 +167,24 @@ document.addEventListener('DOMContentLoaded', function() {
     ticketInfo.textContent = `Jira Ticket: ${ticketId}`;
   }
   
-  function loadNote(ticketId) {
-    // First check the new format, then fall back to old format
-    chrome.storage.local.get([`note_${ticketId}`, 'jiraNotes', `risk_${ticketId}`], function(result) {
-      // Check new format first
-      if (result[`note_${ticketId}`] !== undefined) {
-        currentNote = result[`note_${ticketId}`].content || '';
+  async function loadNote(ticketId) {
+    try {
+      const ticket = await dataService.getTicket(ticketId);
+      if (ticket) {
+        currentNote = ticket.notes || '';
         noteInput.value = currentNote;
-      } 
-      // Fall back to old format
-      else if (result.jiraNotes && result.jiraNotes[ticketId] !== undefined) {
-        currentNote = result.jiraNotes[ticketId];
-        noteInput.value = currentNote;
-        // Trigger migration of this note to new format
-        migrateNoteToNewFormat(ticketId, currentNote);
+        updateRiskUI(ticket.isAtRisk || false);
+        updateStatus(currentNote ? 'Note loaded' : 'No saved note for this ticket');
       } else {
         currentNote = '';
         noteInput.value = '';
+        updateRiskUI(false);
+        updateStatus('No saved note for this ticket');
       }
-      
-      // Update risk status
-      updateRiskUI(result[`risk_${ticketId}`] === true);
-      
-      updateStatus(currentNote ? 'Note loaded' : 'No saved note for this ticket');
-    });
+    } catch (error) {
+      console.error('Error loading note:', error);
+      updateStatus('Error loading note', true);
+    }
   }
   
   // Helper function to migrate a single note to the new format
@@ -125,88 +205,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  function saveNote() {
+  async function saveNote() {
     if (!currentTicketId) return;
     
     const noteContent = noteInput.value.trim();
-    const noteKey = `note_${currentTicketId}`;
-    const urlKey = `url_${currentTicketId}`;
     
-    // Get current risk status
-    chrome.storage.local.get([`risk_${currentTicketId}`], function(riskResult) {
-      const isAtRisk = riskResult[`risk_${currentTicketId}`] === true;
-      
+    try {
       if (noteContent) {
-        // Save in new format
-        const noteData = {
-          content: noteContent,
-          timestamp: Date.now(),
-          project: currentTicketId.split('-')[0],
-          title: `Ticket ${currentTicketId}`,
-          atRisk: isAtRisk  // Include risk status in note data
-        };
+        // Save the note
+        await dataService.saveTicket(currentTicketId, {
+          notes: noteContent,
+          isAtRisk: currentTicket?.isAtRisk || false,
+          isArchived: currentTicket?.isArchived || false,
+          summary: currentTicket?.summary || ''
+        });
         
-        // Get the current URL and ensure it's from a supported Jira instance
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-          let url = tabs[0]?.url || '';
-          
-          // If this is a Jira ticket page, use the canonical URL format
-          if (url.match(/atlassian\.net\/browse\//) || 
-              url.match(/jira\.service\.tools-pi\.com\/browse\//)) {
-            const urlObj = new URL(url);
-            url = `${urlObj.protocol}//${urlObj.host}/browse/${currentTicketId}`;
-          }
-          
-          const updates = {
-            [noteKey]: noteData,
-            [urlKey]: url
-          };
-          
-          // If we have old format data, clean it up
-          chrome.storage.local.get(['jiraNotes'], function(result) {
-            if (result.jiraNotes && result.jiraNotes[currentTicketId] !== undefined) {
-              delete result.jiraNotes[currentTicketId];
-              updates.jiraNotes = result.jiraNotes;
-            }
-            
-            chrome.storage.local.set(updates, function() {
-              currentNote = noteContent;
-              updateStatus('Note saved successfully!');
-              // Notify background script to update the badge
-              chrome.runtime.sendMessage({ action: 'updateBadge' });
-              // Also update the badge in the popup
-              updateBadge();
-            });
-          });
-        });
+        currentNote = noteContent;
+        updateStatus('Note saved successfully!');
+        
+        // Update the badge
+        await updateBadge();
+        
+        // Notify background script to update the badge
+        chrome.runtime.sendMessage({ action: 'updateBadge' });
       } else {
-        // Clear note - remove from both old and new formats
-        chrome.storage.local.get(['jiraNotes'], function(result) {
-          const updates = {};
-          
-          // Remove from old format if it exists
-          if (result.jiraNotes && result.jiraNotes[currentTicketId] !== undefined) {
-            delete result.jiraNotes[currentTicketId];
-            updates.jiraNotes = result.jiraNotes;
-          }
-          
-          // Remove from new format
-          chrome.storage.local.remove([noteKey, urlKey], function() {
-            if (Object.keys(updates).length > 0) {
-              chrome.storage.local.set(updates, function() {
-                currentNote = '';
-                updateStatus('Note cleared');
-                updateBadge();
-              });
-            } else {
-              currentNote = '';
-              updateStatus('Note cleared');
-              updateBadge();
-            }
-          });
+        // Clear the note
+        await dataService.saveTicket(currentTicketId, {
+          notes: '',
+          isAtRisk: currentTicket?.isAtRisk || false,
+          isArchived: currentTicket?.isArchived || false,
+          summary: currentTicket?.summary || ''
         });
+        
+        currentNote = '';
+        updateStatus('Note cleared');
+        
+        // Update the badge
+        await updateBadge();
       }
-    });
+    } catch (error) {
+      console.error('Error saving note:', error);
+      updateStatus('Failed to save note', true);
+    }
   }
   
   function clearNote() {
@@ -380,52 +420,77 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Update the badge based on note and risk status
-  function updateBadge() {
+  async function updateBadge() {
     if (!currentTicketId) return;
     
-    // Always update the badge via the background script to ensure consistency
-    chrome.runtime.sendMessage({ action: 'updateBadge' });
-    
-    // Update local UI state
-    chrome.storage.local.get([`risk_${currentTicketId}`, `note_${currentTicketId}`, 'jiraNotes'], function(result) {
-      const isAtRisk = result[`risk_${currentTicketId}`] === true;
-      const hasNewNote = result[`note_${currentTicketId}`]?.content?.trim() || false;
-      const hasOldNote = result.jiraNotes?.[currentTicketId]?.trim() || false;
-      const hasNote = hasNewNote || hasOldNote;
-      
-      // Update risk button state
-      atRiskBtn.disabled = false;
-      if (isAtRisk) {
-        atRiskBtn.classList.add('at-risk');
-        atRiskBtn.innerHTML = '<span class="risk-icon">🚩</span> Marked as At Risk';
-      } else {
-        atRiskBtn.classList.remove('at-risk');
-        atRiskBtn.innerHTML = '<span class="risk-icon">🚩</span> Mark as At Risk';
+    try {
+      const ticket = await dataService.getTicket(currentTicketId);
+      if (ticket) {
+        currentTicket = ticket;
+        
+        // Update risk button state
+        atRiskBtn.disabled = false;
+        if (ticket.isAtRisk) {
+          atRiskBtn.classList.add('at-risk');
+          atRiskBtn.innerHTML = '<span class="risk-icon">🚩</span> Marked as At Risk';
+        } else {
+          atRiskBtn.classList.remove('at-risk');
+          atRiskBtn.innerHTML = '<span class="risk-icon">🚩</span> Mark as At Risk';
+        }
+        
+        // Update archive button state
+        if (ticket.isArchived) {
+          archiveBtn.classList.add('archived');
+          archiveBtn.textContent = '📦 Unarchive Ticket';
+        } else {
+          archiveBtn.classList.remove('archived');
+          archiveBtn.textContent = '📥 Archive Ticket';
+        }
+        
+        // Update summary if available
+        if (ticket.summary) {
+          summaryEl.textContent = ticket.summary;
+          summaryEl.style.display = 'block';
+        } else {
+          summaryEl.style.display = 'none';
+        }
       }
-    });
+      
+      // Always update the badge via the background script to ensure consistency
+      chrome.runtime.sendMessage({ action: 'updateBadge' });
+    } catch (error) {
+      console.error('Error updating badge:', error);
+    }
   }
   
   // Toggle At Risk status
-  function toggleAtRiskStatus() {
+  async function toggleAtRiskStatus() {
     if (!currentTicketId) return;
     
-    const riskKey = `risk_${currentTicketId}`;
-    
-    chrome.storage.local.get([riskKey], function(result) {
-      const isAtRisk = !result[riskKey];
+    try {
+      const isAtRisk = !currentTicket?.isAtRisk;
       
-      // Update storage
-      chrome.storage.local.set({ [riskKey]: isAtRisk }, function() {
-        // Update button state
-        updateRiskButtonState(isAtRisk);
-        
-        // Update the badge
-        updateBadge();
-        
-        // Show status message
-        updateStatus(isAtRisk ? 'Marked as At Risk' : 'Removed At Risk status');
+      // Update the ticket
+      await dataService.saveTicket(currentTicketId, {
+        ...currentTicket,
+        isAtRisk,
+        notes: currentTicket?.notes || ''
       });
-    });
+      
+      // Update the UI
+      if (currentTicket) {
+        currentTicket.isAtRisk = isAtRisk;
+      }
+      
+      // Update the badge
+      await updateBadge();
+      
+      // Show status message
+      updateStatus(isAtRisk ? 'Marked as At Risk' : 'Removed At Risk status');
+    } catch (error) {
+      console.error('Error toggling risk status:', error);
+      updateStatus('Failed to update risk status', true);
+    }
   }
   
   function updateStatus(message, isError = false) {

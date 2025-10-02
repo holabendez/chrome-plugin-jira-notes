@@ -1,42 +1,56 @@
-// Import the migration script
-importScripts('migration.js');
+// Import the data service
+import dataService from './data-service.js';
+
+// Initialize data service when background script loads
+(async () => {
+  try {
+    console.log('Initializing data service...');
+    await dataService.init();
+    console.log('Data service initialized successfully');
+    
+    // Log the current state of the storage for debugging
+    const allData = await chrome.storage.local.get(null);
+    console.log('Current storage state:', allData);
+    
+    // Check if we have any tickets
+    const tickets = await dataService.getAllTickets();
+    console.log(`Found ${Object.keys(tickets).length} tickets after initialization`);
+    
+  } catch (error) {
+    console.error('Failed to initialize data service:', error);
+  }
+})();
 
 // Listen for extension installation or update
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
-    // Initialize storage with default values
-    await chrome.storage.local.get(['jiraNotes'], (result) => {
-      if (!result.jiraNotes) {
-        chrome.storage.local.set({ jiraNotes: {} });
-      }
-    });
-    
     // Open a welcome page
     chrome.tabs.create({
       url: chrome.runtime.getURL('welcome.html')
     });
-  }
-  
-  // Always check for migrations when the extension is updated
-  if (details.reason === 'update') {
-    // The migration will be handled by the imported migration.js
-    console.log('Extension updated, checking for migrations...');
+  } else if (details.reason === 'update') {
+    // Handle any data migrations on update
+    try {
+      await dataService.migrateIfNeeded();
+      console.log('Data migration completed successfully');
+    } catch (error) {
+      console.error('Error during data migration:', error);
+    }
   }
 });
 
 // Update the extension icon badge with note and risk status
-function updateBadge(tabId, url) {
+async function updateBadge(tabId, url) {
   // If we have a tab ID but no URL, try to get the URL from the tab
   if (tabId && !url) {
-    chrome.tabs.get(tabId, (tab) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error getting tab:', chrome.runtime.lastError);
-        return;
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab?.url) {
+        updateBadge(tabId, tab.url);
       }
-      if (tab && tab.url) {
-        updateBadge(tab.id, tab.url);
-      }
-    });
+    } catch (error) {
+      console.error('Error getting tab:', error);
+    }
     return;
   }
   
@@ -47,49 +61,97 @@ function updateBadge(tabId, url) {
     return;
   }
   
-  // Check for note and risk status in storage
-  chrome.storage.local.get([`note_${ticketId}`, 'jiraNotes', `risk_${ticketId}`], (result) => {
-    try {
-      // Check for note in new format
-      const hasNewNote = result[`note_${ticketId}`]?.content?.trim() || false;
-      
-      // Check for note in old format
-      const hasOldNote = result.jiraNotes?.[ticketId]?.trim() || false;
-      
-      const hasNote = hasNewNote || hasOldNote;
-      const isAtRisk = result[`risk_${ticketId}`] === true;
-      
-      // Debug log
-      console.log(`Updating badge for ${ticketId}:`, { hasNewNote, hasOldNote, hasNote, isAtRisk });
-      
-      // Priority: At Risk > Has Note > Default
-      if (isAtRisk) {
-        chrome.action.setBadgeText({ text: '🚩', tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#f8d7da', tabId });
-      } else if (hasNote) {
-        chrome.action.setBadgeText({ text: '📝', tabId });
-        chrome.action.setBadgeBackgroundColor({ color: '#e2e8f0', tabId });
-      } else {
-        chrome.action.setBadgeText({ text: '', tabId });
-      }
-    } catch (error) {
-      console.error('Error updating badge:', error);
+  try {
+    const ticket = await dataService.getTicket(ticketId);
+    const hasNote = ticket?.notes?.trim() || false;
+    const isAtRisk = ticket?.isAtRisk || false;
+    
+    // Priority: At Risk > Has Note > Default
+    if (isAtRisk) {
+      chrome.action.setBadgeText({ text: '🚩', tabId });
+      chrome.action.setBadgeBackgroundColor({ color: '#f8d7da', tabId });
+    } else if (hasNote) {
+      chrome.action.setBadgeText({ text: '📝', tabId });
+      chrome.action.setBadgeBackgroundColor({ color: '#e2e8f0', tabId });
+    } else {
       chrome.action.setBadgeText({ text: '', tabId });
     }
-  });
+  } catch (error) {
+    console.error('Error updating badge:', error);
+    chrome.action.setBadgeText({ text: '', tabId });
+  }
 }
 
 // Extract Jira ticket ID from URL
 function extractJiraTicketId(url) {
   if (!url) return null;
+  // Matches both formats:
+  // - https://your-domain.atlassian.net/browse/PROJ-123
+  // - https://jira.service.tools-pi.com/browse/PROJ-123
   const jiraUrlRegex = /[\/\?&]([A-Z]+-\d+)(?:[\?&#]|$)/i;
   const match = url.match(jiraUrlRegex);
   return match ? match[1] : null;
 }
 
+// Get ticket summary from the page
+async function getTicketSummary() {
+  try {
+    const tabId = await getActiveTabId();
+    if (!tabId) return '';
+    
+    // Try to get summary from the page
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        // Common Jira selectors for the ticket summary
+        const selectors = [
+          '[data-testid="issue.views.issue-base.foundation.summary.heading"]', // Newer Jira Cloud
+          'h1[data-test-id="issue.views.issue-base.foundation.summary.heading"]', // Older Jira Cloud
+          '.issue-link', // Some Jira versions
+          '#summary-val', // Classic view
+          '.jira-issue-header__title', // Jira Service Management
+          'h1' // Fallback to first h1
+        ];
+        
+        for (const selector of selectors) {
+          const elements = Array.from(document.querySelectorAll(selector));
+          // Find the most likely candidate (prioritize elements with text content)
+          const element = elements.find(el => {
+            const text = el.textContent?.trim() || '';
+            return text.length > 0 && text.length < 200; // Reasonable length for a summary
+          });
+          
+          if (element) {
+            return element.textContent.trim();
+          }
+        }
+        return '';
+      }
+    });
+    
+    return result?.result || '';
+  } catch (error) {
+    console.error('Error getting ticket summary:', error);
+    return '';
+  }
+}
+
+// Get all tickets from the data service
+async function getAllTickets() {
+  try {
+    const tickets = await dataService.getAllTickets();
+    console.log(`Retrieved ${Object.keys(tickets).length} tickets from storage`);
+    return tickets;
+  } catch (error) {
+    console.error('Error getting all tickets:', error);
+    return {};
+  }
+}
+
 // Update badge when tab is updated
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab && tab.url) {
+    console.log(`Tab ${tabId} updated with URL: ${tab.url}`);
     updateBadge(tabId, tab.url);
   }
 });
@@ -158,6 +220,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true;
   }
+  // Handle getTicketSummary request
+  else if (request.action === 'getTicketSummary') {
+    (async () => {
+      try {
+        const summary = await getTicketSummary();
+        if (sendResponse) {
+          sendResponse({ status: 'success', summary });
+        }
+      } catch (error) {
+        console.error('Error getting ticket summary:', error);
+        if (sendResponse) {
+          sendResponse({ status: 'error', error: error.message });
+        }
+      }
+    })();
+    return true; // Keep the message channel open for async response
+  }
   
-  return true;
+  return true; // Keep the message channel open for async response
+});
+
+// Listen for tab URL changes to update the badge
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab?.url) {
+    updateBadge(tabId, tab.url);
+  }
+});
+
+// Update badge when tab is activated
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.tabs.get(activeInfo.tabId, (tab) => {
+    if (tab?.url) {
+      updateBadge(tab.id, tab.url);
+    }
+  });
 });
