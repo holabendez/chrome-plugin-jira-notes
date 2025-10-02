@@ -179,7 +179,11 @@
   <div class="container">
     <header>
       <h1>All Jira Notes</h1>
-      <button id="exportAllBtn" class="export-btn">Export All Notes</button>
+      <div style="display: flex; gap: 10px;">
+        <button id="importBtn" class="export-btn">Import Notes</button>
+        <button id="exportAllBtn" class="export-btn">Export All Notes</button>
+      </div>
+      <input type="file" id="importFileInput" accept=".json" style="display: none;">
     </header>
     
     <div class="controls">

@@ -218,12 +218,81 @@ document.addEventListener('DOMContentLoaded', function() {
     linkElement.click();
   }
   
+  // Import notes from file
+  function importNotes() {
+    const fileInput = document.getElementById('importFileInput');
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importData = JSON.parse(event.target.result);
+          if (!importData.notes || !Array.isArray(importData.notes)) {
+            throw new Error('Invalid import file format');
+          }
+          
+          // Load existing notes first
+          chrome.storage.local.get(null, function(items) {
+            const updates = {};
+            const importedTicketIds = new Set();
+            
+            // Process imported notes
+            importData.notes.forEach(note => {
+              if (note.id && note.content) {
+                const noteKey = `note_${note.id}`;
+                updates[noteKey] = {
+                  content: note.content,
+                  project: note.project || 'Other',
+                  timestamp: note.timestamp || Date.now(),
+                  title: note.title || `Ticket ${note.id}`
+                };
+                importedTicketIds.add(note.id);
+              }
+            });
+            
+            // Save all updates
+            chrome.storage.local.set(updates, function() {
+              if (chrome.runtime.lastError) {
+                console.error('Error importing notes:', chrome.runtime.lastError);
+                alert('Error importing notes. Please check the console for details.');
+              } else {
+                // Reload notes to show the imported ones
+                loadAllNotes();
+                alert(`Successfully imported ${importedTicketIds.size} notes.`);
+              }
+            });
+          });
+          
+        } catch (error) {
+          console.error('Error parsing import file:', error);
+          alert('Error importing notes: ' + error.message);
+        }
+        
+        // Reset file input
+        fileInput.value = '';
+      };
+      
+      reader.onerror = () => {
+        alert('Error reading file');
+        fileInput.value = '';
+      };
+      
+      reader.readAsText(file);
+    };
+    
+    // Trigger file selection
+    fileInput.click();
+  }
+  
   // Event Listeners
   searchInput.addEventListener('input', displayNotes);
   filterProject.addEventListener('change', displayNotes);
   document.getElementById('filterRisk').addEventListener('change', displayNotes);
   sortBy.addEventListener('change', displayNotes);
   exportAllBtn.addEventListener('click', exportAllNotes);
+  document.getElementById('importBtn').addEventListener('click', importNotes);
   
   // Initial load
   loadAllNotes();
