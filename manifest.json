@@ -8,7 +8,8 @@
     "activeTab", 
     "alarms",
     "scripting",
-    "declarativeNetRequest"
+    "declarativeNetRequest",
+    "contextMenus"
   ],
   "host_permissions": [
     "*://*.atlassian.net/*",

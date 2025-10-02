@@ -1,6 +1,22 @@
 // Import the migration script
 importScripts('migration.js');
 
+// Create the context menu item
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: 'viewAllNotes',
+    title: 'View All Notes',
+    contexts: ['action']
+  });
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'viewAllNotes') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('all-notes.html') });
+  }
+});
+
 // Listen for extension installation or update
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
